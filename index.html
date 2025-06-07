@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>โปรแกรมคำนวณขนาดท่อลม (Duct Sizer)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+        }
+        .duct {
+            background-color: #d1d5db; /* gray-300 */
+            border: 2px solid #6b7280; /* gray-500 */
+            box-sizing: border-box;
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #1f2937; /* gray-800 */
+            transition: all 0.3s ease-in-out;
+        }
+        .diffuser {
+            background-color: #fde047; /* yellow-300 */
+            border: 2px solid #ca8a04; /* yellow-500 */
+            box-sizing: border-box;
+            position: absolute;
+            z-index: 10;
+            transition: all 0.3s ease-in-out;
+        }
+        .diffuser.square { border-radius: 0; }
+        .diffuser.round { border-radius: 50%; }
+        .diffuser-label {
+            position: absolute;
+            font-size: 0.6rem;
+            color: #4b5563;
+            text-align: center;
+            width: 100%;
+            bottom: -22px;
+            white-space: nowrap;
+        }
+        .label {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 relative">
+        <div class="absolute top-4 right-4 md:top-8 md:right-8 text-xs text-gray-400 font-mono text-right">
+            <p>V 2.0.0.0</p>
+            <p id="lastUpdatedDate"></p>
+        </div>
+
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-700">HVAC Duct Sizer Application</h1>
+            <p class="text-gray-600 mt-2">เครื่องมือช่วยออกแบบและคำนวณขนาดท่อลมเบื้องต้น</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- ส่วน Input -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg h-fit">
+                <h2 class="text-2xl font-bold mb-4 border-b pb-2 text-blue-600">1. ป้อนข้อมูล</h2>
+                
+                <form id="ductForm">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="roomName" class="block text-sm font-medium text-gray-700">ชื่อห้อง</label>
+                            <input type="text" id="roomName" value="Office-01" placeholder="เช่น Office-01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="roomWidth" class="block text-sm font-medium text-gray-700">ความกว้างห้อง (m)</label>
+                                <input type="number" id="roomWidth" value="10" step="any" placeholder="เช่น 10.5" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label for="roomLength" class="block text-sm font-medium text-gray-700">ความยาวห้อง (m)</label>
+                                <input type="number" id="roomLength" value="20" step="any" placeholder="เช่น 20.2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="totalCFM" class="block text-sm font-medium text-gray-700">ปริมาณลมจ่ายรวม (CFM)</label>
+                            <input type="number" id="totalCFM" value="2000" step="10" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 items-end">
+                            <div>
+                                <label for="appType" class="block text-sm font-medium text-gray-700">ประเภทการใช้งาน</label>
+                                <select id="appType" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="office" selected>สำนักงาน</option>
+                                    <option value="residence">บ้านพักอาศัย</option>
+                                    <option value="retail">ร้านค้า</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="frictionRate" class="block text-sm font-medium text-gray-700">Friction Rate (in.wg/100ft)</label>
+                                <input type="number" id="frictionRate" value="0.10" step="0.005" min="0.02" max="0.2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div>
+                             <label for="grilleType" class="block text-sm font-medium text-gray-700">ประเภทหัวจ่าย (Grille Type)</label>
+                             <select id="grilleType" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                 <option value="square" selected>หัวจ่ายสี่เหลี่ยม (Square Diffuser)</option>
+                                 <option value="round">หัวจ่ายกลม (Round Diffuser)</option>
+                             </select>
+                        </div>
+                        
+                        <div>
+                            <label for="ductShape" class="block text-sm font-medium text-gray-700">รูปทรงท่อ</label>
+                            <select id="ductShape" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="rectangular" selected>ท่อเหลี่ยม</option>
+                                <option value="round">ท่อกลม</option>
+                            </select>
+                        </div>
+                        
+                        <div id="aspectRatioContainer">
+                            <label for="aspectRatio" class="block text-sm font-medium text-gray-700">Maximum Aspect Ratio</label>
+                            <select id="aspectRatio" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="1.5">1.5:1 (แนะนำ)</option>
+                                <option value="2">2:1 (มาตรฐาน)</option>
+                                <option value="3">3:1 (ยอมรับได้)</option>
+                                <option value="4" selected>4:1 (จำกัด)</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <button type="submit" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-md">
+                        คำนวณและสร้างผัง
+                    </button>
+                </form>
+            </div>
+
+            <!-- ส่วนแสดงผล -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-4 border-b pb-2 text-blue-600">2. ผลการออกแบบ</h2>
+                <h3 id="resultRoomName" class="text-xl font-semibold mb-4 text-gray-700"></h3>
+                
+                <div class="mb-6">
+                    <h4 class="font-bold mb-2">ผังท่อลม (Duct Layout)</h4>
+                    <div id="roomLayout" class="relative bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden" style="padding-bottom: 50%;">
+                        <!-- Ducts and diffusers will be injected here by JS -->
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold mb-2">ตารางสรุปผล (Sizing Table)</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border">
+                            <thead class="bg-gray-200">
+                                <tr>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Segment</th>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Airflow (CFM)</th>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">ขนาดท่อ (inch)</th>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">ความยาว (m)</th>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">ขนาดหัวจ่าย</th>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Throw (ft)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="mt-12 pt-6 border-t border-gray-200">
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg" role="alert">
+                <p class="font-bold">ข้อควรระวัง</p>
+                <ul class="list-disc list-inside mt-2 text-sm">
+                    <li>โปรแกรมนี้สำหรับช่วยออกแบบและคำนวณขนาดท่อลมเบื้องต้นเท่านั้น ควรปรึกษาวิศวกรผู้ออกแบบก่อนนำไปใช้งานจริง</li>
+                    <li>ผู้พัฒนาจะไม่รับผิดชอบต่อความเสียหายใดๆ ที่เกิดจากการใช้ข้อมูลหรือผลลัพธ์จากโปรแกรมนี้ ผู้ใช้งานต้องยอมรับความเสี่ยงด้วยตนเอง</li>
+                </ul>
+            </div>
+            <div class="text-center text-sm text-gray-500 mt-6">
+                <p>Dev. by Jirameth P. (roongzaa@gmail.com)</p>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        // --- START: Standard Data Tables ---
+        const METER_TO_FEET = 3.28084;
+        const grillePerformanceData = {
+            square: [
+                { size: '6"x6"', freeArea: 0.196, cfm_fpm: [{fpm: 400, cfm: 78, throw: '3-6'}, {fpm: 500, cfm: 98, throw: '4-6'}, {fpm: 600, cfm: 118, throw: '4-6'}, {fpm: 700, cfm: 137, throw: '5-7'}]},
+                { size: '8"x8"', freeArea: 0.349, cfm_fpm: [{fpm: 400, cfm: 140, throw: '3-5'}, {fpm: 500, cfm: 175, throw: '4-6'}, {fpm: 600, cfm: 209, throw: '5-8'}, {fpm: 700, cfm: 244, throw: '5-8'}]},
+                { size: '10"x10"', freeArea: 0.545, cfm_fpm: [{fpm: 400, cfm: 218, throw: '4-6'}, {fpm: 500, cfm: 273, throw: '5-9'}, {fpm: 600, cfm: 327, throw: '6-11'}, {fpm: 700, cfm: 381, throw: '7-13'}]},
+                { size: '12"x12"', freeArea: 0.785, cfm_fpm: [{fpm: 400, cfm: 314, throw: '5-9'}, {fpm: 500, cfm: 392, throw: '6-10'}, {fpm: 600, cfm: 471, throw: '6-12'}, {fpm: 700, cfm: 550, throw: '7-14'}]},
+                { size: '14"x14"', freeArea: 1.070, cfm_fpm: [{fpm: 400, cfm: 428, throw: '8-13'}, {fpm: 500, cfm: 535, throw: '8-13'}, {fpm: 600, cfm: 642, throw: '11-15'}, {fpm: 700, cfm: 749, throw: '11-16'}]},
+            ],
+            round: [ // Placeholder data, should be replaced with actual round diffuser performance
+                { size: '6"', cfm_fpm: [{cfm: 100, throw: '4-7'}]},
+                { size: '8"', cfm_fpm: [{cfm: 180, throw: '5-9'}]},
+                { size: '10"', cfm_fpm: [{cfm: 280, throw: '6-12'}]},
+                { size: '12"', cfm_fpm: [{cfm: 400, throw: '8-15'}]},
+                { size: '14"', cfm_fpm: [{cfm: 550, throw: '9-17'}]},
+            ]
+        };
+        // --- END: Standard Data Tables ---
+
+        // **FIX**: Add the missing designParams definition
+        const designParams = {
+            office: { frictionRate: 0.10 },
+            residence: { frictionRate: 0.08 },
+            retail: { frictionRate: 0.12 }
+        };
+
+        const form = document.getElementById('ductForm');
+        const ductShapeSelect = document.getElementById('ductShape');
+        const aspectRatioContainer = document.getElementById('aspectRatioContainer');
+        const appTypeSelect = document.getElementById('appType');
+        const frictionRateInput = document.getElementById('frictionRate');
+
+        ductShapeSelect.addEventListener('change', () => {
+            aspectRatioContainer.style.display = ductShapeSelect.value === 'rectangular' ? 'block' : 'none';
+        });
+        
+        appTypeSelect.addEventListener('change', (e) => {
+            const selectedType = e.target.value;
+            frictionRateInput.value = designParams[selectedType].frictionRate.toFixed(2);
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            calculateAndDraw();
+        });
+
+        function calculateAndDraw() {
+            const roomWidth = parseFloat(document.getElementById('roomWidth').value);
+            const roomLength = parseFloat(document.getElementById('roomLength').value);
+            const totalCFM = parseFloat(document.getElementById('totalCFM').value);
+            const appType = document.getElementById('appType').value;
+            const frictionRate = parseFloat(document.getElementById('frictionRate').value);
+            const ductShape = document.getElementById('ductShape').value;
+            const grilleType = document.getElementById('grilleType').value;
+            const maxAspectRatio = parseFloat(document.getElementById('aspectRatio').value);
+
+            if (isNaN(roomWidth) || isNaN(roomLength) || isNaN(totalCFM) || roomWidth <= 0 || roomLength <= 0 || totalCFM <= 0) {
+                alert("กรุณาป้อนข้อมูลตัวเลขที่ถูกต้องสำหรับขนาดห้องและปริมาณลม"); return;
+            }
+
+            document.getElementById('resultRoomName').textContent = `ห้อง: ${document.getElementById('roomName').value}`;
+            
+            // ** NEW: Smart Layout Logic **
+            const layoutData = generateSmartLayout(totalCFM, roomWidth, roomLength, grilleType);
+            
+            const tableData = calculateDuctSizes(layoutData, frictionRate, ductShape, maxAspectRatio, grilleType, roomWidth, roomLength);
+
+            drawLayout(roomWidth, roomLength, layoutData.diffusers, tableData.ducts, grilleType);
+            populateTable(tableData.summary);
+        }
+
+        function getGrilleByThrowAndCFM(requiredThrow, requiredCFM, grilleType) {
+             const table = grillePerformanceData[grilleType];
+             for(const grille of table) {
+                 // Find a performance point that meets the CFM and Throw requirement
+                 for(const perf of grille.cfm_fpm) {
+                     const avgThrow = perf.throw.split('-').reduce((a,b) => parseFloat(a) + parseFloat(b), 0) / 2;
+                     if(perf.cfm >= requiredCFM && avgThrow >= requiredThrow) {
+                         return { grilleSize: grille.size, actualThrow: avgThrow, cfmPerDiffuser: perf.cfm };
+                     }
+                 }
+             }
+             return null; // No suitable grille found
+        }
+
+        function generateSmartLayout(totalCFM, roomWidthM, roomLengthM) {
+            const roomWidthFt = roomWidthM * METER_TO_FEET;
+            const roomLengthFt = roomLengthM * METER_TO_FEET;
+
+            // Attempt to find a suitable layout, starting with 1 diffuser
+            for (let n = 1; n < 20; n++) { // Limit to 20 diffusers max
+                const cfmPerDiffuser = totalCFM / n;
+                
+                let cols = Math.ceil(Math.sqrt(n * (roomLengthFt/roomWidthFt)));
+                let rows = Math.ceil(n / cols);
+                let numDiffusers = rows * cols; // Recalculate n to make a full grid
+
+                const effectiveCFM = totalCFM / numDiffusers;
+
+                const zoneWidth = roomLengthFt / cols;
+                const zoneHeight = roomWidthFt / rows;
+                // Required throw is the distance to the corner of the zone
+                const requiredThrow = Math.sqrt(Math.pow(zoneWidth / 2, 2) + Math.pow(zoneHeight / 2, 2));
+
+                const suitableGrille = getGrilleByThrowAndCFM(requiredThrow, effectiveCFM, document.getElementById('grilleType').value);
+
+                if(suitableGrille) {
+                    const diffusers = [];
+                    for(let r = 0; r < rows; r++) {
+                        for(let c = 0; c < cols; c++) {
+                             const xPos = ((c + 0.5) / cols) * 100;
+                             const yPos = ((r + 0.5) / rows) * 100;
+                             diffusers.push({ id: `D${diffusers.length+1}`, x: xPos, y: yPos, cfm: effectiveCFM, throw: suitableGrille.actualThrow, grilleSize: suitableGrille.grilleSize});
+                        }
+                    }
+                    return { diffusers, rows, cols };
+                }
+            }
+             // Fallback to old method if no solution found
+             return generateLayout(Math.round(totalCFM / 250), totalCFM/Math.round(totalCFM / 250), 1, Math.round(totalCFM / 250) );
+        }
+
+        function calculateDuctSizes(layoutData, frictionRate, ductShape, maxAspectRatio, grilleType, roomWidth, roomLength) {
+            const ducts = [];
+            const summary = [];
+            let currentCFM = layoutData.diffusers.length * layoutData.diffusers[0].cfm;
+            const mainDuctY = 50; 
+            let lastMainWidth = null;
+
+            const diffusersByX = layoutData.diffusers.reduce((acc, d) => {
+                if(!acc[d.x]) acc[d.x] = [];
+                acc[d.x].push(d);
+                return acc;
+            }, {});
+
+            const sortedX = Object.keys(diffusersByX).map(parseFloat).sort((a,b) => a-b);
+            let prevDiffuserX = 0;
+
+            for (const x of sortedX) {
+                const diffusersAtX = diffusersByX[x];
+                const cfmTakeoff = diffusersAtX.reduce((sum, d) => sum + d.cfm, 0);
+
+                const segmentId = `M-${summary.filter(d=>d.id.startsWith('M')).length + 1}`;
+                const sizeInfo = getDuctSize(currentCFM, frictionRate, ductShape, maxAspectRatio, true, lastMainWidth);
+                const mainDuctLength = (x - prevDiffuserX) / 100 * roomLength;
+                
+                ducts.push({ id: segmentId, type: 'main', x1: prevDiffuserX, y1: mainDuctY, x2: x, y2: mainDuctY, ...sizeInfo, length: mainDuctLength });
+                summary.push({ id: segmentId, cfm: currentCFM, ...sizeInfo, length: mainDuctLength });
+                
+                lastMainWidth = sizeInfo.ductWidth;
+
+                diffusersAtX.forEach((diffuser, j) => {
+                    const branchId = `B-${summary.filter(d=>d.id.startsWith('B')).length + 1}`;
+                    const branchSizeInfo = getDuctSize(diffuser.cfm, frictionRate, ductShape, maxAspectRatio, false, null);
+                    const branchDuctLength = Math.abs(diffuser.y - mainDuctY) / 100 * roomWidth;
+
+                    ducts.push({ id: branchId, type: 'branch', x1: diffuser.x, y1: mainDuctY, x2: diffuser.x, y2: diffuser.y, ...branchSizeInfo, length: branchDuctLength, grilleSize: diffuser.grilleSize, actualThrow: diffuser.throw });
+                    summary.push({ id: branchId, cfm: diffuser.cfm, ...branchSizeInfo, length: branchDuctLength, grilleSize: diffuser.grilleSize, actualThrow: diffuser.throw });
+                });
+
+                currentCFM -= cfmTakeoff;
+                if (currentCFM < 1) currentCFM = 0;
+                prevDiffuserX = x;
+            }
+            
+            return { ducts, summary };
+        }
+        
+        function getDuctSize(cfm, fr, shape, maxAspectRatio, isMainDuct, lastMainWidth) {
+             if (cfm <= 0) return { size: 'N/A', velocity: 0, ductWidth: 0, ductHeight: 0 };
+             const eqDiameterInFeet = Math.pow(cfm / (2330 * Math.pow(fr, 0.54)), 1 / 2.62);
+             const eqDiameter = eqDiameterInFeet * 12;
+             const area_sqft = (Math.PI * Math.pow(eqDiameterInFeet, 2)) / 4;
+             const velocity = (area_sqft > 0) ? cfm / area_sqft : 0;
+             let size;
+             let W = 0, H = 0;
+             if (shape === 'round') {
+                 let roundedDiameter;
+                 if (eqDiameter <= 8) roundedDiameter = Math.ceil(eqDiameter);
+                 else roundedDiameter = Math.ceil(eqDiameter / 2) * 2;
+                 size = `${roundedDiameter}” Ø`;
+                 W = H = roundedDiameter;
+             } else {
+                 let logicApplied = false;
+                 if (isMainDuct && lastMainWidth) {
+                     const requiredArea_sqin = (Math.PI * Math.pow(eqDiameter, 2)) / 4;
+                     const newHeight = requiredArea_sqin / lastMainWidth;
+                     if ((lastMainWidth / newHeight) <= maxAspectRatio) {
+                         W = lastMainWidth; H = newHeight; logicApplied = true;
+                     }
+                 }
+                 if (!logicApplied) {
+                     H = (eqDiameter * Math.pow(maxAspectRatio + 1, 0.25)) / (1.30 * Math.pow(maxAspectRatio, 0.625));
+                     W = H * maxAspectRatio;
+                 }
+                 const roundedW = Math.ceil(W / 2) * 2;
+                 const roundedH = Math.ceil(H / 2) * 2;
+                 size = `${roundedW}” x ${roundedH}”`;
+                 W = roundedW; H = roundedH;
+             }
+             return { size, velocity: Math.round(velocity), ductWidth: W, ductHeight: H };
+        }
+
+        function drawLayout(roomWidth, roomLength, diffusers, ducts, grilleType) {
+            const layoutContainer = document.getElementById('roomLayout');
+            layoutContainer.innerHTML = ''; 
+            
+            const roomAspectRatio = roomLength / roomWidth;
+            if (isFinite(roomAspectRatio) && roomAspectRatio > 0) {
+                 layoutContainer.style.paddingBottom = `${(1 / roomAspectRatio) * 100}%`;
+            } else {
+                 layoutContainer.style.paddingBottom = `50%`;
+            }
+           
+            const mainDuctHeight = 4;
+
+            ducts.forEach(duct => {
+                const el = document.createElement('div');
+                el.classList.add('duct');
+                const label = document.createElement('span');
+                label.classList.add('label');
+                label.innerText = `${duct.id}: ${duct.size}`;
+
+                if (duct.type === 'main') {
+                    const width = duct.x2 - duct.x1;
+                    if(width <=0) return;
+                    el.style.left = `${duct.x1}%`;
+                    el.style.top = `calc(${duct.y1}% - ${mainDuctHeight/2}%)`;
+                    el.style.width = `${width}%`;
+                    el.style.height = `${mainDuctHeight}%`;
+                    label.style.bottom = '100%';
+                    label.style.left = '50%';
+                    label.style.transform = 'translateX(-50%)';
+                } else {
+                    const height = Math.abs(duct.y2 - duct.y1);
+                    if(height <= 0) return;
+                    el.style.left = `calc(${duct.x1}% - 1%)`; 
+                    el.style.top = `${Math.min(duct.y1, duct.y2)}%`;
+                    el.style.width = '2%';
+                    el.style.height = `${height}%`;
+                    label.style.left = '100%';
+                    label.style.top = '50%';
+                    label.style.transform = 'translateY(-50%)';
+                }
+                el.appendChild(label); 
+                layoutContainer.appendChild(el);
+            });
+
+            diffusers.forEach(diffuser => {
+                const el = document.createElement('div');
+                el.classList.add('diffuser', grilleType);
+                el.style.width = '5%';
+                el.style.height = '5%';
+                el.style.left = `calc(${diffuser.x}% - 2.5%)`;
+                el.style.top = `calc(${diffuser.y}% - 2.5%)`;
+                
+                const label = document.createElement('div');
+                label.classList.add('diffuser-label');
+                label.innerHTML = `${diffuser.id} (${Math.round(diffuser.cfm)} CFM)<br>Throw: ${diffuser.throw} ft`;
+                el.appendChild(label);
+                
+                layoutContainer.appendChild(el);
+            });
+        }
+
+        function populateTable(summary) {
+            const tableBody = document.getElementById('resultTable');
+            tableBody.innerHTML = '';
+            summary.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-2 px-4 border-b text-sm">${row.id}</td>
+                    <td class="py-2 px-4 border-b text-sm">${Math.round(row.cfm)}</td>
+                    <td class="py-2 px-4 border-b text-sm font-semibold">${row.size}</td>
+                    <td class="py-2 px-4 border-b text-sm">${row.length.toFixed(2)}</td>
+                    <td class="py-2 px-4 border-b text-sm">${row.grilleSize || '-'}</td>
+                    <td class="py-2 px-4 border-b text-sm">${row.actualThrow ? row.actualThrow.toFixed(1) : '-'}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+        
+        window.onload = () => {
+             appTypeSelect.dispatchEvent(new Event('change'));
+             ductShapeSelect.dispatchEvent(new Event('change'));
+             form.dispatchEvent(new Event('submit'));
+             
+             const today = new Date();
+             const day = String(today.getDate()).padStart(2, '0');
+             const month = String(today.getMonth() + 1).padStart(2, '0');
+             const year = today.getFullYear();
+             document.getElementById('lastUpdatedDate').textContent = `Updated: ${day}/${month}/${year}`;
+        }
+    </script>
+</body>
+</html>
